@@ -48,19 +48,12 @@ jobs:
         run: |
           ~/.dotnet/tools/reportgenerator \
             -reports:GestionReservasWebII.Tests/TestResults/**/coverage.cobertura.xml \
-            -targetdir:coverage -reporttypes:Cobertura
+            -targetdir:coverage -reporttypes:Cobertura,Xml
 
       - name: Verify Coverage File Exists
         run: |
           echo "🔍 Checking for coverage file..."
           ls -R coverage/ || echo "⚠️ No coverage files found."
-
-      - name: Extract Coverage Metrics
-        id: coverage_metrics
-        run: |
-          COVERAGE=$(grep -oP '(?<=<coverage line-rate=")\d+\.\d+' coverage/Cobertura.xml || echo "0.00")
-          echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
-          echo "Coverage: $COVERAGE%"
 
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
@@ -78,6 +71,7 @@ jobs:
             -Dsonar.organization=jeanvalverde24
             -Dsonar.projectKey=JeanValverde24_Proyecto_Rec_Espejo
             -Dsonar.sources=GestionReservasWebII.Tests
+            -Dsonar.coverage.exclusions=GestionReservasWebII.Tests/**/*.cs
             -Dsonar.cs.opencover.reportsPaths=coverage/Cobertura.xml
             -Dsonar.qualitygate.wait=true
 
