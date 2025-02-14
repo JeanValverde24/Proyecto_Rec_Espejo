@@ -1,13 +1,9 @@
-name: SonarCloud Analysis & Code Coverage
+name: SonarCloud Analysis
 
 on:
   push:
     branches:
       - main
-    paths:
-      - 'GestionReservasWebII/**'
-      - 'GestionReservasWebII.Tests/**'
-      - 'GestionReservasWebII.sln'
   pull_request:
     types: [opened, synchronize, reopened]
 
@@ -21,9 +17,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
-          fetch-depth: 0  # Necesario para SonarCloud
+          fetch-depth: 0
 
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
@@ -38,12 +34,13 @@ jobs:
 
       - name: Run Tests with Coverage
         run: |
-          mkdir -p GestionReservasWebII.Tests/TestResults  # Asegura que TestResults existe
+          mkdir -p GestionReservasWebII.Tests/TestResults
           dotnet test GestionReservasWebII.Tests \
             --no-build \
             --collect:"XPlat Code Coverage" \
             --logger trx \
             --results-directory GestionReservasWebII.Tests/TestResults
+
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
@@ -52,6 +49,7 @@ jobs:
           ~/.dotnet/tools/reportgenerator \
             -reports:GestionReservasWebII.Tests/TestResults/**/coverage.cobertura.xml \
             -targetdir:coverage -reporttypes:Cobertura
+
       - name: Verify Coverage File Exists
         run: |
           echo "🔍 Checking for coverage file..."
@@ -79,13 +77,9 @@ jobs:
           args: >
             -Dsonar.organization=jeanvalverde24
             -Dsonar.projectKey=JeanValverde24_Proyecto_Rec_Espejo
-            -Dsonar.sources=GestionReservasWebII,GestionReservasWebII.Tests
+            -Dsonar.sources=GestionReservasWebII.Tests
             -Dsonar.cs.opencover.reportsPaths=coverage/Cobertura.xml
-            -Dsonar.inclusions=GestionReservasWebII/**/*.cs,GestionReservasWebII.Tests/**/*.cs
-            -Dsonar.coverage.exclusions=GestionReservasWebII.Tests/**/*.cs
             -Dsonar.qualitygate.wait=true
-            -Dsonar.cpd.exclusions=GestionReservasWebII/**/*.Designer.cs
-            -Dsonar.cpd.duplicate.exclusions=GestionReservasWebII/**/*.Designer.cs
 
       - name: Fetch SonarCloud Metrics and Display
         id: fetch-metrics
@@ -108,7 +102,7 @@ jobs:
 
       - name: Publish SonarCloud Metrics as Annotations
         run: |
-          echo "## 📊 SonarCloud Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "## SonarCloud Metrics" >> $GITHUB_STEP_SUMMARY
           echo "| Metric               | Value   | Icon       |" >> $GITHUB_STEP_SUMMARY
           echo "|----------------------|---------|------------|" >> $GITHUB_STEP_SUMMARY
           echo "| Coverage             | ${{ env.COVERAGE }}% | ✅ |" >> $GITHUB_STEP_SUMMARY
@@ -116,13 +110,11 @@ jobs:
           if .metric == "security_rating" then "| Security Rating      | \(.value) | 🛡️ |" 
           elif .metric == "reliability_rating" then "| Reliability Rating   | \(.value) | 🔧 |" 
           elif .metric == "sqale_rating" then "| Maintainability      | \(.value) | ♻️ |" 
-          elif .metric == "code_smells" then "| Code Smells          | \(.value) | 🤧 |" 
+          elif .metric == "code_smells" then "| Code Smells          | \(.value) | 🤢 |" 
           elif .metric == "duplicated_lines_density" then "| Duplications         | \(.value)% | 🔀 |" 
           elif .metric == "cognitive_complexity" then "| Cognitive Complexity | \(.value) | 🧠 |" 
           elif .metric == "bugs" then "| Bugs                 | \(.value) | 🐛 |" 
-          elif .metric == "ncloc" then "| Lines of Code        | \(.value) | 📜 |" 
           elif .metric == "comment_lines_density" then "| Comment Density      | \(.value)% | 💬 |" 
-          elif .metric == "complexity" then "| Complexity           | \(.value) | 🔢 |" 
           else empty end' >> $GITHUB_STEP_SUMMARY
         env:
           RESPONSE: ${{ env.response }}
