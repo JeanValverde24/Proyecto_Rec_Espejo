@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -72,8 +72,7 @@ jobs:
             -Dsonar.projectKey=JeanValverde24_Proyecto_Rec_Espejo
             -Dsonar.sources=GestionReservasWebII.Tests
             -Dsonar.cs.opencover.reportsPaths=coverage/Cobertura.xml
-            -Dsonar.inclusions=GestionReservasWebII.Tests/**/*.cs
-            -Dsonar.coverage.exclusions=GestionReservasWebII.Tests/**/*.cs
+            -Dsonar.inclusions=GestionReservasWebII.Tests/Models/**/*.cs,GestionReservasWebII.Tests/Controllers/**/*.cs
             -Dsonar.qualitygate.wait=true
             -Dsonar.cpd.exclusions=GestionReservasWebII/**/*.Designer.cs
             -Dsonar.cpd.duplicate.exclusions=GestionReservasWebII/**/*.Designer.cs
