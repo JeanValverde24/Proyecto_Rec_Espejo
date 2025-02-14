@@ -1,0 +1,117 @@
+name: SonarCloud Analysis & Code Coverage
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'GestionReservasWebII/**'
+      - 'GestionReservasWebII.sln'
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  coverage:
+    name: Code Coverage
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore
+        working-directory: GestionReservasWebII
+
+      - name: Build Project
+        run: dotnet build --no-restore
+        working-directory: GestionReservasWebII
+
+      - name: Run Tests with Coverage (Filtered)
+        run: |
+          dotnet test --no-build --collect:"XPlat Code Coverage" \
+            --settings coverlet.runsettings --logger trx
+        working-directory: GestionReservasWebII
+
+      - name: Install ReportGenerator
+        run: dotnet tool install --global dotnet-reportgenerator-globaltool
+
+      - name: Generate Coverage Report (Filtered)
+        run: |
+          mkdir -p coverage
+          ~/.dotnet/tools/reportgenerator \
+            -reports:GestionReservasWebII/TestResults/**/coverage.cobertura.xml \
+            -targetdir:coverage -reporttypes:Cobertura \
+            -filefilters:"+GestionReservasWebII/Models/* +GestionReservasWebII/Views/* +GestionReservasWebII/Controllers/*"
+        working-directory: ${{ github.workspace }}
+
+      - name: Verify Coverage File Exists
+        run: |
+          echo "🔍 Listing files in coverage/"
+          ls -R coverage/ || echo "⚠️ No coverage files found."
+
+      - name: Extract Coverage Metrics
+        id: coverage_metrics
+        run: |
+          COVERAGE=$(grep -oP '(?<=<coverage line-rate=")\d+\.\d+' coverage/Cobertura.xml || echo "0.00")
+          echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
+          echo "Coverage: $COVERAGE%"
+
+      - name: Publish Coverage Metrics as Annotations
+        run: |
+          echo "## 📊 Code Coverage Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric      | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Coverage   | ${{ env.COVERAGE }}% |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Commit & Push Coverage Report
+        run: |
+          git config --global user.name "github-actions"
+          git config --global user.email "github-actions@github.com"
+          git add coverage/Cobertura.xml || echo "No new coverage file found."
+          git commit -m "Update coverage report" || echo "No changes to commit."
+          git push origin main
+        continue-on-error: true
+
+  sonarcloud:
+    name: SonarCloud Analysis
+    runs-on: ubuntu-latest
+    needs: coverage
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore
+        working-directory: GestionReservasWebII
+
+      - name: Build Project
+        run: dotnet build --no-restore
+        working-directory: GestionReservasWebII
+
+      - name: SonarCloud Scan
+        uses: sonarsource/sonarcloud-github-action@master
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=jeanvalverde24
+            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+            -Dsonar.sources=GestionReservasWebII
+            -Dsonar.cs.opencover.reportsPaths=coverage/Cobertura.xml
