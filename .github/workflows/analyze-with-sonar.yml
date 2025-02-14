@@ -98,7 +98,7 @@ jobs:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         with:
           args: >
-            -Dsonar.organization=JeanValverde24
+            -Dsonar.organization=jeanvalverde24
             -Dsonar.projectKey=JeanValverde24_Proyecto_Rec_Espejo
             -Dsonar.sources=GestionReservasWebII,GestionReservasWebII.Tests
             -Dsonar.cs.opencover.reportsPaths=coverage/Cobertura.xml
