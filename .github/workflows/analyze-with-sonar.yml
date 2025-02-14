@@ -37,7 +37,7 @@ jobs:
 
       - name: Run Tests with Coverage
         run: |
-          mkdir -p GestionReservasWebII.Tests/TestResults
+          mkdir -p GestionReservasWebII.Tests/TestResults  # Asegura que TestResults existe
           dotnet test GestionReservasWebII.Tests \
             --no-build \
             --collect:"XPlat Code Coverage" \
