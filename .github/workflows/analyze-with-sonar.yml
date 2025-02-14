@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -32,9 +32,9 @@ jobs:
       - name: Build Solution
         run: dotnet build --no-restore --configuration Debug GestionReservasWebII.sln
 
-      - name: Run Tests with Coverage
+      - name: Run Tests with Coverage (Only Tests Folder)
         run: |
-          mkdir -p GestionReservasWebII.Tests/TestResults  # Asegura que TestResults existe
+          mkdir -p GestionReservasWebII.Tests/TestResults
           dotnet test GestionReservasWebII.Tests \
             --no-build \
             --collect:"XPlat Code Coverage" \
@@ -44,7 +44,7 @@ jobs:
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
-      - name: Generate Coverage Report
+      - name: Generate Coverage Report (Only Tests Folder)
         run: |
           ~/.dotnet/tools/reportgenerator \
             -reports:GestionReservasWebII.Tests/TestResults/**/coverage.cobertura.xml \
@@ -76,7 +76,7 @@ jobs:
           set -e
           SONAR_API_URL="https://sonarcloud.io/api/measures/component"
           PROJECT_KEY="JeanValverde24_Proyecto_Rec_Espejo"
-          METRICS="bugs,vulnerabilities,code_smells,coverage,duplicated_lines_density,complexity,ncloc,cognitive_complexity,comment_lines_density,security_rating,reliability_rating,sqale_rating"
+          METRICS="bugs,vulnerabilities,code_smells,coverage,duplicated_lines_density,complexity,ncloc,cognitive_complexity,comment_lines_density,security_rating,reliability_rating,sqale_rating,hotspots_reviewed"
           echo "Fetching SonarCloud Metrics..."
           RESPONSE=$(curl -s -u "$SONAR_TOKEN:" "$SONAR_API_URL?component=$PROJECT_KEY&metricKeys=$METRICS")
           if [[ -z "$RESPONSE" || "$RESPONSE" == *"errors"* ]]; then
@@ -94,12 +94,13 @@ jobs:
           echo "|----------------------|---------|------------|" >> $GITHUB_STEP_SUMMARY
           echo "| Coverage             | ${{ env.COVERAGE }}% | ✅ |" >> $GITHUB_STEP_SUMMARY
           echo $RESPONSE | jq -r '.component.measures[] | 
-          if .metric == "security_rating" then "| Security Rating      | \(.value) | :shield: |" 
-          elif .metric == "reliability_rating" then "| Reliability Rating   | \(.value) | :tools: |" 
-          elif .metric == "sqale_rating" then "| Maintainability      | \(.value) | :recycle: |" 
-          elif .metric == "code_smells" then "| Code Smells          | \(.value) | :nose: |" 
+          if .metric == "security_rating" then "| Security Rating      | \(.value) | 🛡 |" 
+          elif .metric == "reliability_rating" then "| Reliability Rating   | \(.value) | 🛠 |" 
+          elif .metric == "sqale_rating" then "| Maintainability      | \(.value) | ♻️ |" 
+          elif .metric == "code_smells" then "| Code Smells          | \(.value) | 👃 |" 
           elif .metric == "duplicated_lines_density" then "| Duplications         | \(.value)% | 🔀 |" 
           elif .metric == "cognitive_complexity" then "| Cognitive Complexity | \(.value) | 🧠 |"
+          elif .metric == "hotspots_reviewed" then "| Hotspots Reviewed    | \(.value) | 🔥 |"
           else empty end' >> $GITHUB_STEP_SUMMARY
         env:
           RESPONSE: ${{ env.response }}
@@ -113,9 +114,10 @@ jobs:
           args: >
             -Dsonar.organization=jeanvalverde24
             -Dsonar.projectKey=JeanValverde24_Proyecto_Rec_Espejo
-            -Dsonar.sources=GestionReservasWebII,GestionReservasWebII.Tests
+            -Dsonar.sources=GestionReservasWebII
+            -Dsonar.tests=GestionReservasWebII.Tests
+            -Dsonar.test.inclusions=GestionReservasWebII.Tests/**/*.cs
             -Dsonar.cs.opencover.reportsPaths=coverage/Cobertura.xml
-            -Dsonar.inclusions=GestionReservasWebII/**/*.cs,GestionReservasWebII.Tests/**/*.cs
             -Dsonar.coverage.exclusions=GestionReservasWebII.Tests/**/*.cs
             -Dsonar.qualitygate.wait=true
             -Dsonar.cpd.exclusions=GestionReservasWebII/**/*.Designer.cs
