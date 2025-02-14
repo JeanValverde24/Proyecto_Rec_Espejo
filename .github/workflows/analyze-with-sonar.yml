@@ -43,7 +43,6 @@ jobs:
             --collect:"XPlat Code Coverage" \
             --logger trx \
             --results-directory GestionReservasWebII.Tests/TestResults
-
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
@@ -52,11 +51,17 @@ jobs:
           ~/.dotnet/tools/reportgenerator \
             -reports:GestionReservasWebII.Tests/TestResults/**/coverage.cobertura.xml \
             -targetdir:coverage -reporttypes:Cobertura
-
       - name: Verify Coverage File Exists
         run: |
           echo "🔍 Checking for coverage file..."
           ls -R coverage/ || echo "⚠️ No coverage files found."
+
+      - name: Extract Coverage Metrics
+        id: coverage_metrics
+        run: |
+          COVERAGE=$(grep -oP '(?<=<coverage line-rate=")\d+\.\d+' coverage/Cobertura.xml || echo "0.00")
+          echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
+          echo "Coverage: $COVERAGE%"
 
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
@@ -84,6 +89,19 @@ jobs:
       - name: Build Solution
         run: dotnet build --no-restore --configuration Debug GestionReservasWebII.sln
 
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarqube-scan-action@v4.1.0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        with:
+          args: >
+            -Dsonar.organization=jeanvalverde24
+            -Dsonar.projectKey=JeanValverde24_Proyecto_Rec_Espejo
+            -Dsonar.sources=GestionReservasWebII,GestionReservasWebII.Tests
+            -Dsonar.cs.opencover.reportsPaths=coverage/Cobertura.xml
+            -Dsonar.inclusions=GestionReservasWebII/**/*.cs,GestionReservasWebII.Tests/**/*.cs
+
       - name: Fetch SonarCloud Metrics and Display
         id: fetch-metrics
         env:
@@ -105,7 +123,7 @@ jobs:
 
       - name: Publish SonarCloud Metrics as Annotations
         run: |
-          echo "## SonarCloud Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 SonarCloud Metrics" >> $GITHUB_STEP_SUMMARY
           echo "| Metric               | Value   | Icon       |" >> $GITHUB_STEP_SUMMARY
           echo "|----------------------|---------|------------|" >> $GITHUB_STEP_SUMMARY
           echo $RESPONSE | jq -r '.component.measures[] | 
@@ -123,16 +141,3 @@ jobs:
           else empty end' >> $GITHUB_STEP_SUMMARY
         env:
           RESPONSE: ${{ env.response }}
-
-      - name: SonarCloud Scan
-        uses: sonarsource/sonarcloud-github-action@master
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        with:
-          args: >
-            -Dsonar.organization=jeanvalverde24
-            -Dsonar.projectKey=JeanValverde24_Proyecto_Rec_Espejo
-            -Dsonar.sources=Proyecto_Rec_Espejo
-            -Dsonar.cs.opencover.reportsPaths=coverage/Cobertura.xml
-            -Dsonar.inclusions=GestionReservasWebII/**/*.cs
