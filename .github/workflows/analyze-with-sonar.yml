@@ -6,6 +6,7 @@ on:
       - main
     paths:
       - 'GestionReservasWebII/**'
+      - 'GestionReservasWebII.Tests/**'
       - 'GestionReservasWebII.sln'
   pull_request:
     types: [opened, synchronize, reopened]
@@ -22,6 +23,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
@@ -36,51 +39,73 @@ jobs:
         run: dotnet build --no-restore
         working-directory: GestionReservasWebII
 
-      - name: Run Tests with Coverage (Filtered)
+      - name: Run Tests with Coverage
         run: |
-          dotnet test --no-build --collect:"XPlat Code Coverage" \
-            --settings coverlet.runsettings --logger trx
-        working-directory: GestionReservasWebII
+          dotnet test GestionReservasWebII.Tests --no-build --collect:"XPlat Code Coverage" --logger trx \
+            --results-directory GestionReservasWebII.Tests/TestResults
+        working-directory: ${{ github.workspace }}
+
+      - name: Verify Coverage Files
+        run: |
+          echo "🔍 Listing files in GestionReservasWebII.Tests/TestResults/"
+          ls -R GestionReservasWebII.Tests/TestResults/ || echo "⚠️ No test results found."
 
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
-      - name: Generate Coverage Report (Filtered)
+      - name: Generate Coverage Report
         run: |
           mkdir -p coverage
           ~/.dotnet/tools/reportgenerator \
-            -reports:GestionReservasWebII/TestResults/**/coverage.cobertura.xml \
-            -targetdir:coverage -reporttypes:Cobertura \
-            -filefilters:"+GestionReservasWebII/Models/* +GestionReservasWebII/Views/* +GestionReservasWebII/Controllers/*"
+            -reports:GestionReservasWebII.Tests/TestResults/**/coverage.cobertura.xml \
+            -targetdir:coverage -reporttypes:Cobertura
         working-directory: ${{ github.workspace }}
 
-      - name: Verify Coverage File Exists
-        run: |
-          echo "🔍 Listing files in coverage/"
-          ls -R coverage/ || echo "⚠️ No coverage files found."
+      - name: Upload Coverage Report
+        uses: actions/upload-artifact@v3
+        with:
+          name: coverage-report
+          path: coverage/Cobertura.xml
 
-      - name: Extract Coverage Metrics
-        id: coverage_metrics
+      - name: Fetch SonarCloud Metrics and Display
+        id: fetch-metrics
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         run: |
-          COVERAGE=$(grep -oP '(?<=<coverage line-rate=")\d+\.\d+' coverage/Cobertura.xml || echo "0.00")
-          echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
-          echo "Coverage: $COVERAGE%"
+          set -e
+          SONAR_API_URL="https://sonarcloud.io/api/measures/component"
+          PROJECT_KEY="${{ secrets.SONAR_PROJECT_KEY }}"
+          METRICS="bugs,vulnerabilities,code_smells,coverage,duplicated_lines_density,complexity,ncloc,cognitive_complexity,comment_lines_density,security_rating,reliability_rating,sqale_rating"
+          echo "Fetching SonarCloud Metrics..."
+          RESPONSE=$(curl -s -u "$SONAR_TOKEN:" "$SONAR_API_URL?component=$PROJECT_KEY&metricKeys=$METRICS")
+          if [[ -z "$RESPONSE" || "$RESPONSE" == *"errors"* ]]; then
+            echo "SonarCloud API Response: $RESPONSE"
+            echo "Error fetching SonarCloud metrics. Please check the project key and SonarCloud API token."
+            exit 1
+          fi
+          echo "SonarCloud API Response: $RESPONSE"
+          echo "response=$RESPONSE" >> $GITHUB_ENV
 
-      - name: Publish Coverage Metrics as Annotations
+      - name: Publish SonarCloud Metrics as Annotations
         run: |
-          echo "## 📊 Code Coverage Metrics" >> $GITHUB_STEP_SUMMARY
-          echo "| Metric      | Value |" >> $GITHUB_STEP_SUMMARY
-          echo "|------------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Coverage   | ${{ env.COVERAGE }}% |" >> $GITHUB_STEP_SUMMARY
-
-      - name: Commit & Push Coverage Report
-        run: |
-          git config --global user.name "github-actions"
-          git config --global user.email "github-actions@github.com"
-          git add coverage/Cobertura.xml || echo "No new coverage file found."
-          git commit -m "Update coverage report" || echo "No changes to commit."
-          git push origin main
-        continue-on-error: true
+          echo "## SonarCloud Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric               | Value   | Icon       |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------------------|---------|------------|" >> $GITHUB_STEP_SUMMARY
+          echo $RESPONSE | jq -r '.component.measures[] | 
+          if .metric == "coverage" then "| Coverage             | \(.value)% | :white_check_mark: |" 
+          elif .metric == "complexity" then "| Complexity           | \(.value) | :triangular_ruler: |" 
+          elif .metric == "ncloc" then "| Lines of Code        | \(.value) | :scroll: |" 
+          elif .metric == "security_rating" then "| Security Rating      | \(.value) | :shield: |" 
+          elif .metric == "reliability_rating" then "| Reliability Rating   | \(.value) | :tools: |" 
+          elif .metric == "sqale_rating" then "| Maintainability      | \(.value) | :recycle: |" 
+          elif .metric == "code_smells" then "| Code Smells          | \(.value) | :nose: |" 
+          elif .metric == "duplicated_lines_density" then "| Duplications         | \(.value)% | :twisted_rightwards_arrows: |" 
+          elif .metric == "cognitive_complexity" then "| Cognitive Complexity | \(.value) | :brain: |" 
+          elif .metric == "bugs" then "| Bugs                 | \(.value) | :bug: |" 
+          elif .metric == "comment_lines_density" then "| Comment Density      | \(.value)% | :speech_balloon: |" 
+          else empty end' >> $GITHUB_STEP_SUMMARY
+        env:
+          RESPONSE: ${{ env.response }}
 
   sonarcloud:
     name: SonarCloud Analysis
@@ -90,6 +115,8 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v3
