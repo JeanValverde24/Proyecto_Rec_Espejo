@@ -23,49 +23,66 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v3
         with:
           dotnet-version: '8.0.x'
 
       - name: Restore Dependencies
-        run: dotnet restore
-        working-directory: GestionReservasWebII
+        run: dotnet restore GestionReservasWebII.sln
 
-      - name: Build Project
-        run: dotnet build --no-restore
-        working-directory: GestionReservasWebII
+      - name: Build Solution
+        run: dotnet build --no-restore --configuration Debug GestionReservasWebII.sln
 
       - name: Run Tests with Coverage
         run: |
-          dotnet test GestionReservasWebII.Tests --no-build --collect:"XPlat Code Coverage" --logger trx \
+          mkdir -p GestionReservasWebII.Tests/TestResults  # Asegura que TestResults existe
+          dotnet test GestionReservasWebII.Tests \
+            --no-build \
+            --collect:"XPlat Code Coverage" \
+            --logger trx \
             --results-directory GestionReservasWebII.Tests/TestResults
-        working-directory: ${{ github.workspace }}
-
-      - name: Verify Coverage Files
-        run: |
-          echo "🔍 Listing files in GestionReservasWebII.Tests/TestResults/"
-          ls -R GestionReservasWebII.Tests/TestResults/ || echo "⚠️ No test results found."
 
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
       - name: Generate Coverage Report
         run: |
-          mkdir -p coverage
           ~/.dotnet/tools/reportgenerator \
             -reports:GestionReservasWebII.Tests/TestResults/**/coverage.cobertura.xml \
             -targetdir:coverage -reporttypes:Cobertura
-        working-directory: ${{ github.workspace }}
+
+      - name: Verify Coverage File Exists
+        run: |
+          echo "🔍 Checking for coverage file..."
+          ls -R coverage/ || echo "⚠️ No coverage files found."
 
       - name: Upload Coverage Report
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: coverage-report
           path: coverage/Cobertura.xml
+
+  sonarcloud:
+    name: SonarCloud Analysis
+    runs-on: ubuntu-latest
+    needs: coverage
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v3
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Restore Dependencies
+        run: dotnet restore GestionReservasWebII.sln
+
+      - name: Build Solution
+        run: dotnet build --no-restore --configuration Debug GestionReservasWebII.sln
 
       - name: Fetch SonarCloud Metrics and Display
         id: fetch-metrics
@@ -74,7 +91,7 @@ jobs:
         run: |
           set -e
           SONAR_API_URL="https://sonarcloud.io/api/measures/component"
-          PROJECT_KEY="${{ secrets.SONAR_PROJECT_KEY }}"
+          PROJECT_KEY="JeanValverde24_GestionReservasWebII"
           METRICS="bugs,vulnerabilities,code_smells,coverage,duplicated_lines_density,complexity,ncloc,cognitive_complexity,comment_lines_density,security_rating,reliability_rating,sqale_rating"
           echo "Fetching SonarCloud Metrics..."
           RESPONSE=$(curl -s -u "$SONAR_TOKEN:" "$SONAR_API_URL?component=$PROJECT_KEY&metricKeys=$METRICS")
@@ -107,30 +124,6 @@ jobs:
         env:
           RESPONSE: ${{ env.response }}
 
-  sonarcloud:
-    name: SonarCloud Analysis
-    runs-on: ubuntu-latest
-    needs: coverage
-
-    steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-
-      - name: Restore Dependencies
-        run: dotnet restore
-        working-directory: GestionReservasWebII
-
-      - name: Build Project
-        run: dotnet build --no-restore
-        working-directory: GestionReservasWebII
-
       - name: SonarCloud Scan
         uses: sonarsource/sonarcloud-github-action@master
         env:
@@ -139,6 +132,7 @@ jobs:
         with:
           args: >
             -Dsonar.organization=jeanvalverde24
-            -Dsonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+            -Dsonar.projectKey=JeanValverde24_GestionReservasWebII
             -Dsonar.sources=GestionReservasWebII
             -Dsonar.cs.opencover.reportsPaths=coverage/Cobertura.xml
+            -Dsonar.inclusions=GestionReservasWebII/**/*.cs
