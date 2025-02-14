@@ -1,4 +1,4 @@
-name: SonarCloud Analysis
+name: SonarCloud Analysis and Code Coverage
 
 on:
   push:
@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
@@ -48,7 +48,7 @@ jobs:
         run: |
           ~/.dotnet/tools/reportgenerator \
             -reports:GestionReservasWebII.Tests/TestResults/**/coverage.cobertura.xml \
-            -targetdir:coverage -reporttypes:Cobertura,Xml
+            -targetdir:coverage -reporttypes:Cobertura
 
       - name: Verify Coverage File Exists
         run: |
@@ -71,9 +71,12 @@ jobs:
             -Dsonar.organization=jeanvalverde24
             -Dsonar.projectKey=JeanValverde24_Proyecto_Rec_Espejo
             -Dsonar.sources=GestionReservasWebII.Tests
-            -Dsonar.coverage.exclusions=GestionReservasWebII.Tests/**/*.cs
             -Dsonar.cs.opencover.reportsPaths=coverage/Cobertura.xml
+            -Dsonar.inclusions=GestionReservasWebII.Tests/**/*.cs
+            -Dsonar.coverage.exclusions=GestionReservasWebII.Tests/**/*.cs
             -Dsonar.qualitygate.wait=true
+            -Dsonar.cpd.exclusions=GestionReservasWebII/**/*.Designer.cs
+            -Dsonar.cpd.duplicate.exclusions=GestionReservasWebII/**/*.Designer.cs
 
       - name: Fetch SonarCloud Metrics and Display
         id: fetch-metrics
@@ -99,11 +102,13 @@ jobs:
           echo "## SonarCloud Metrics" >> $GITHUB_STEP_SUMMARY
           echo "| Metric               | Value   | Icon       |" >> $GITHUB_STEP_SUMMARY
           echo "|----------------------|---------|------------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Coverage             | ${{ env.COVERAGE }}% | ✅ |" >> $GITHUB_STEP_SUMMARY
           echo $RESPONSE | jq -r '.component.measures[] | 
-          if .metric == "security_rating" then "| Security Rating      | \(.value) | 🛡️ |" 
-          elif .metric == "reliability_rating" then "| Reliability Rating   | \(.value) | 🔧 |" 
-          elif .metric == "sqale_rating" then "| Maintainability      | \(.value) | ♻️ |" 
+          if .metric == "coverage" then "| Coverage             | \(.value)% | ✅ |" 
+          elif .metric == "complexity" then "| Complexity           | \(.value) | 📏 |" 
+          elif .metric == "ncloc" then "| Lines of Code        | \(.value) | 📜 |" 
+          elif .metric == "security_rating" then "| Security Rating      | \(.value) | 🛡️ |" 
+          elif .metric == "reliability_rating" then "| Reliability Rating   | \(.value) | 🛠️ |" 
+          elif .metric == "sqale_rating" then "| Maintainability      | \(.value) | 🔄 |" 
           elif .metric == "code_smells" then "| Code Smells          | \(.value) | 🤢 |" 
           elif .metric == "duplicated_lines_density" then "| Duplications         | \(.value)% | 🔀 |" 
           elif .metric == "cognitive_complexity" then "| Cognitive Complexity | \(.value) | 🧠 |" 
