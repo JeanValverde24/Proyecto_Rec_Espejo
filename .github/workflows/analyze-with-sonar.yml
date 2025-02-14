@@ -132,7 +132,7 @@ jobs:
         with:
           args: >
             -Dsonar.organization=jeanvalverde24
-            -Dsonar.projectKey=JeanValverde24_GestionReservasWebII
-            -Dsonar.sources=GestionReservasWebII
+            -Dsonar.projectKey=JeanValverde24_Proyecto_Rec_Espejo
+            -Dsonar.sources=Proyecto_Rec_Espejo
             -Dsonar.cs.opencover.reportsPaths=coverage/Cobertura.xml
             -Dsonar.inclusions=GestionReservasWebII/**/*.cs
