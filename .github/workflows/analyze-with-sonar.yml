@@ -48,19 +48,10 @@ jobs:
           ~/.dotnet/tools/reportgenerator \
             -reports:GestionReservasWebII.Tests/TestResults/**/coverage.cobertura.xml \
             -targetdir:coverage -reporttypes:Cobertura,Xml
-
       - name: Verify Coverage File Exists
         run: |
           echo "🔍 Checking for coverage file..."
           ls -R coverage/ || echo "⚠️ No coverage files found."
-
-      - name: Extract Coverage Metrics
-        id: coverage_metrics
-        run: |
-          COVERAGE=$(grep -oP '(?<=<coverage line-rate=")\d+\.\d+' coverage/Cobertura.xml || echo "0.00")
-          echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
-          echo "Coverage: $COVERAGE%"
-
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
         with:
@@ -77,12 +68,9 @@ jobs:
             -Dsonar.organization=jeanvalverde24
             -Dsonar.projectKey=JeanValverde24_Proyecto_Rec_Espejo
             -Dsonar.sources=GestionReservasWebII.Tests
+            -Dsonar.coverage.exclusions=GestionReservasWebII.Tests/**/*.cs
             -Dsonar.cs.opencover.reportsPaths=coverage/Cobertura.xml
-            -Dsonar.inclusions=GestionReservasWebII.Tests/Models/**/*.cs,GestionReservasWebII.Tests/Controllers/**/*.cs
             -Dsonar.qualitygate.wait=true
-            -Dsonar.cpd.exclusions=GestionReservasWebII/**/*.Designer.cs
-            -Dsonar.cpd.duplicate.exclusions=GestionReservasWebII/**/*.Designer.cs
-
       - name: Fetch SonarCloud Metrics and Display
         id: fetch-metrics
         env:
@@ -101,7 +89,6 @@ jobs:
           fi
           echo "SonarCloud API Response: $RESPONSE"
           echo "response=$RESPONSE" >> $GITHUB_ENV
-
       - name: Publish SonarCloud Metrics as Annotations
         run: |
           echo "## SonarCloud Metrics" >> $GITHUB_STEP_SUMMARY
