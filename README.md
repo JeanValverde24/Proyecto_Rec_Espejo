@@ -1,7 +1,3 @@
-## 📊 SonarCloud Analysis Summary
+## RESULTADOS DEL SOANR EN ANNOTATIONS
 
-| Metric               | Value   | Icon       |
-|----------------------|---------|------------|
-| Code Coverage       | 0.07489878542510121% | ✅ |
-
-
+[VerResultados](https://github.com/JeanValverde24/Proyecto_Rec_Espejo/actions/runs/13349326248)
