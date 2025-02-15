@@ -6,13 +6,15 @@
         <Configuration>
           <Format>cobertura,json,opencover</Format>
           <Include>
-            <ModulePath>GestionReservasWebII/Models/.*</ModulePath>
-            <ModulePath>GestionReservasWebII/Controllers/.*</ModulePath>
+            <ModulePath>.*GestionReservasWebII\.dll</ModulePath>
           </Include>
-          <Exclude>
-            <ModulePath>GestionReservasWebII.Tests/.*</ModulePath>
-            <ModulePath>GestionReservasWebII/Views/.*</ModulePath>
-          </Exclude>
+          <IncludeDirectories>
+            <Directory>/home/runner/work/Proyecto_Rec_Espejo/Proyecto_Rec_Espejo/GestionReservasWebII/Models</Directory>
+            <Directory>/home/runner/work/Proyecto_Rec_Espejo/Proyecto_Rec_Espejo/GestionReservasWebII/Controllers</Directory>
+          </IncludeDirectories>
+          <ExcludeByFile>
+            <File>.*GestionReservasWebII.Tests/.*</File>
+          </ExcludeByFile>
         </Configuration>
       </DataCollector>
     </DataCollectors>
