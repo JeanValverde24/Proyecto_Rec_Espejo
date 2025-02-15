@@ -1,4 +1,4 @@
-name: SonarCloud Analysis and Update README
+name: SonarCloud Analysis
 
 on:
   push:
@@ -41,7 +41,6 @@ jobs:
             --logger trx \
             --results-directory GestionReservasWebII.Tests/TestResults \
             --filter "FullyQualifiedName~GestionReservasWebII.Tests.Models|FullyQualifiedName~GestionReservasWebII.Tests.Controllers"
-
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
@@ -50,14 +49,16 @@ jobs:
           ~/.dotnet/tools/reportgenerator \
             -reports:GestionReservasWebII.Tests/TestResults/**/coverage.cobertura.xml \
             -targetdir:coverage -reporttypes:Cobertura,Xml
-
+      - name: Verify Coverage File Exists
+        run: |
+          echo "🔍 Checking for coverage file..."
+          ls -R coverage/ || echo "⚠️ No coverage files found."
       - name: Extract Coverage Metrics
         id: coverage_metrics
         run: |
           COVERAGE=$(grep -oP '(?<=<coverage line-rate=")\d+\.\d+' coverage/Cobertura.xml || echo "0.00")
           echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
           echo "Coverage: $COVERAGE%"
-
       - name: Upload Coverage Report (Artifact)
         uses: actions/upload-artifact@v4
         with:
@@ -76,7 +77,6 @@ jobs:
             -Dsonar.sources=GestionReservasWebII.Tests
             -Dsonar.coverage.exclusions=GestionReservasWebII.Tests/**/*.cs
             -Dsonar.qualitygate.wait=true
-
       - name: Fetch SonarCloud Metrics and Display
         id: fetch-metrics
         env:
@@ -85,7 +85,7 @@ jobs:
           set -e
           SONAR_API_URL="https://sonarcloud.io/api/measures/component"
           PROJECT_KEY="JeanValverde24_Proyecto_Rec_Espejo"
-          METRICS="bugs,vulnerabilities,code_smells,coverage,duplicated_lines_density,complexity,ncloc,cognitive_complexity,comment_lines_density,security_rating,reliability_rating,sqale_rating"
+          METRICS="bugs,vulnerabilities,code_smells,duplicated_lines_density,complexity,ncloc,cognitive_complexity,comment_lines_density,security_rating,reliability_rating,sqale_rating"
           echo "Fetching SonarCloud Metrics..."
           RESPONSE=$(curl -s -u "$SONAR_TOKEN:" "$SONAR_API_URL?component=$PROJECT_KEY&metricKeys=$METRICS")
           if [[ -z "$RESPONSE" || "$RESPONSE" == *"errors"* ]]; then
@@ -95,16 +95,12 @@ jobs:
           fi
           echo "SonarCloud API Response: $RESPONSE"
           echo "response=$RESPONSE" >> $GITHUB_ENV
-
-      - name: Publish SonarCloud Metrics as Annotations (GitHub Summary)
+      - name: Publish SonarCloud Metrics as Annotations
         run: |
-          echo "## 📊 SonarCloud Analysis Summary" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 SonarCloud Metrics" >> $GITHUB_STEP_SUMMARY
           echo "| Metric               | Value   | Icon       |" >> $GITHUB_STEP_SUMMARY
           echo "|----------------------|---------|------------|" >> $GITHUB_STEP_SUMMARY
-
           echo "| Code Coverage       | ${{ env.COVERAGE }}% | ✅ |" >> $GITHUB_STEP_SUMMARY
-
           echo $RESPONSE | jq -r '.component.measures[] | 
           if .metric == "security_rating" then "| Security Rating      | \(.value) | 🛡️ |" 
           elif .metric == "reliability_rating" then "| Reliability Rating   | \(.value) | 🔧 |" 
@@ -114,48 +110,6 @@ jobs:
           elif .metric == "cognitive_complexity" then "| Cognitive Complexity | \(.value) | 🧠 |" 
           elif .metric == "bugs" then "| Bugs                 | \(.value) | 🐛 |" 
           elif .metric == "comment_lines_density" then "| Comment Density      | \(.value)% | 💬 |" 
-          elif .metric == "ncloc" then "| Lines of Code        | \(.value) | 📜 |" 
-          elif .metric == "vulnerabilities" then "| Vulnerabilities      | \(.value) | 🔓 |" 
           else empty end' >> $GITHUB_STEP_SUMMARY
-
-      - name: Clone Repository and Update README.md
-        run: |
-          # Clonar el repositorio con autenticación por token PAT
-          git clone https://JeanValverde24:${{ secrets.REPO_PAT }}@github.com/JeanValverde24/Proyecto_Rec_Espejo.git repo
-          cd repo
-          
-          # Configurar usuario de Git
-          git config --global user.name "JeanValverde24"
-          git config --global user.email "jv2020066920@virtual.upt.pe"
-
-          # Asegurar que estamos en la última versión
-          git pull origin main
-          
-          # Guardar el contenido anterior del README.md para compararlo
-          cp README.md README_OLD.md || touch README_OLD.md
-
-          # Escribir el nuevo README.md con los resultados de SonarCloud
-          cat <<EOF > README.md
-          ## 📊 SonarCloud Analysis Summary
-
-          | Metric               | Value   | Icon       |
-          |----------------------|---------|------------|
-          | Code Coverage       | ${{ env.COVERAGE }}% | ✅ |
-
-          $(echo $RESPONSE | jq -r '.component.measures[] | 
-          if .metric == "security_rating" then "| Security Rating      | \(.value) | 🛡️ |" 
-          elif .metric == "reliability_rating" then "| Reliability Rating   | \(.value) | 🔧 |" 
-          elif .metric == "sqale_rating" then "| Maintainability      | \(.value) | ♻️ |" 
-          elif .metric == "code_smells" then "| Code Smells          | \(.value) | 🤢 |" 
-          elif .metric == "duplicated_lines_density" then "| Duplications         | \(.value)% | 🔀 |" 
-          elif .metric == "cognitive_complexity" then "| Cognitive Complexity | \(.value) | 🧠 |" 
-          elif .metric == "bugs" then "| Bugs                 | \(.value) | 🐛 |" 
-          elif .metric == "comment_lines_density" then "| Comment Density      | \(.value)% | 💬 |" 
-          elif .metric == "ncloc" then "| Lines of Code        | \(.value) | 📜 |" 
-          elif .metric == "vulnerabilities" then "| Vulnerabilities      | \(.value) | 🔓 |" 
-          else empty end')
-          EOF
-
-          git add README.md
-          git commit -m "📊 Update README.md with SonarCloud Analysis Results" || exit 0
-          git push origin main
+        env:
+          RESPONSE: ${{ env.response }}
