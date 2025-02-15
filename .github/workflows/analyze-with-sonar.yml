@@ -35,11 +35,12 @@ jobs:
       - name: Run Tests with Coverage
         run: |
           mkdir -p GestionReservasWebII.Tests/TestResults
-          dotnet test GestionReservasWebII.Tests \
+          dotnet test GestionReservasWebII.Tests/Models GestionReservasWebII.Tests/Controllers \
             --no-build \
             --collect:"XPlat Code Coverage" \
             --logger trx \
             --results-directory GestionReservasWebII.Tests/TestResults
+
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
@@ -48,10 +49,12 @@ jobs:
           ~/.dotnet/tools/reportgenerator \
             -reports:GestionReservasWebII.Tests/TestResults/**/coverage.cobertura.xml \
             -targetdir:coverage -reporttypes:Cobertura,Xml
+
       - name: Verify Coverage File Exists
         run: |
           echo "🔍 Checking for coverage file..."
           ls -R coverage/ || echo "⚠️ No coverage files found."
+
       - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
         with:
@@ -67,10 +70,11 @@ jobs:
           args: >
             -Dsonar.organization=jeanvalverde24
             -Dsonar.projectKey=JeanValverde24_Proyecto_Rec_Espejo
-            -Dsonar.sources=GestionReservasWebII.Tests
-            -Dsonar.coverage.exclusions=GestionReservasWebII.Tests/**/*.cs
+            -Dsonar.sources=GestionReservasWebII/Models,GestionReservasWebII/Controllers
+            -Dsonar.inclusions=GestionReservasWebII/Models/**/*.cs,GestionReservasWebII/Controllers/**/*.cs
             -Dsonar.cs.opencover.reportsPaths=coverage/Cobertura.xml
             -Dsonar.qualitygate.wait=true
+
       - name: Fetch SonarCloud Metrics and Display
         id: fetch-metrics
         env:
@@ -89,9 +93,10 @@ jobs:
           fi
           echo "SonarCloud API Response: $RESPONSE"
           echo "response=$RESPONSE" >> $GITHUB_ENV
+
       - name: Publish SonarCloud Metrics as Annotations
         run: |
-          echo "## SonarCloud Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 SonarCloud Metrics" >> $GITHUB_STEP_SUMMARY
           echo "| Metric               | Value   | Icon       |" >> $GITHUB_STEP_SUMMARY
           echo "|----------------------|---------|------------|" >> $GITHUB_STEP_SUMMARY
           echo "| Coverage             | ${{ env.COVERAGE }}% | ✅ |" >> $GITHUB_STEP_SUMMARY
