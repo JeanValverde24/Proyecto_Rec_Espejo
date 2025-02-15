@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
           fetch-depth: 0
 
@@ -90,7 +90,7 @@ jobs:
           set -e
           SONAR_API_URL="https://sonarcloud.io/api/measures/component"
           PROJECT_KEY="JeanValverde24_Proyecto_Rec_Espejo"
-          METRICS="bugs,vulnerabilities,code_smells,duplicated_lines_density,complexity,ncloc,cognitive_complexity,comment_lines_density,security_rating,reliability_rating,sqale_rating"
+          METRICS="bugs,vulnerabilities,code_smells,coverage,duplicated_lines_density,complexity,ncloc,cognitive_complexity,comment_lines_density,security_rating,reliability_rating,sqale_rating"
           echo "Fetching SonarCloud Metrics..."
           RESPONSE=$(curl -s -u "$SONAR_TOKEN:" "$SONAR_API_URL?component=$PROJECT_KEY&metricKeys=$METRICS")
           if [[ -z "$RESPONSE" || "$RESPONSE" == *"errors"* ]]; then
@@ -129,6 +129,8 @@ jobs:
           elif .metric == "cognitive_complexity" then "| Cognitive Complexity | \(.value) | 🧠 |" 
           elif .metric == "bugs" then "| Bugs                 | \(.value) | 🐛 |" 
           elif .metric == "comment_lines_density" then "| Comment Density      | \(.value)% | 💬 |" 
+          elif .metric == "ncloc" then "| Lines of Code        | \(.value) | 📜 |" 
+          elif .metric == "vulnerabilities" then "| Vulnerabilities      | \(.value) | 🔓 |" 
           else empty end' >> README.md
 
           # Hacer commit y push al repositorio
