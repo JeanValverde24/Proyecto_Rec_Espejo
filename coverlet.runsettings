@@ -5,12 +5,14 @@
       <DataCollector friendlyName="XPlat Code Coverage">
         <Configuration>
           <Format>cobertura,json,opencover</Format>
-          <IncludeTestAssembly>false</IncludeTestAssembly>
           <Include>
-            <!-- Incluir solo modelos y controladores -->
-            GestionReservasWebII.Models.*
-            GestionReservasWebII.Controllers.*
+            <ModulePath>GestionReservasWebII/Models/.*</ModulePath>
+            <ModulePath>GestionReservasWebII/Controllers/.*</ModulePath>
           </Include>
+          <Exclude>
+            <ModulePath>GestionReservasWebII.Tests/.*</ModulePath>
+            <ModulePath>GestionReservasWebII/Views/.*</ModulePath>
+          </Exclude>
         </Configuration>
       </DataCollector>
     </DataCollectors>
