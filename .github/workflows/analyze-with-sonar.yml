@@ -8,7 +8,7 @@ on:
     types: [opened, synchronize, reopened]
 
 permissions:
-  contents: read
+  contents: write
   pull-requests: write
 
 jobs:
@@ -20,6 +20,7 @@ jobs:
         uses: actions/checkout@v3
         with:
           fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}  # Permisos de escritura para hacer push
 
       - name: Setup .NET 8
         uses: actions/setup-dotnet@v4
@@ -41,6 +42,7 @@ jobs:
             --logger trx \
             --results-directory GestionReservasWebII.Tests/TestResults \
             --filter "FullyQualifiedName~GestionReservasWebII.Tests.Models|FullyQualifiedName~GestionReservasWebII.Tests.Controllers"
+
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
@@ -49,16 +51,19 @@ jobs:
           ~/.dotnet/tools/reportgenerator \
             -reports:GestionReservasWebII.Tests/TestResults/**/coverage.cobertura.xml \
             -targetdir:coverage -reporttypes:Cobertura,Xml
+
       - name: Verify Coverage File Exists
         run: |
           echo "🔍 Checking for coverage file..."
           ls -R coverage/ || echo "⚠️ No coverage files found."
+
       - name: Extract Coverage Metrics
         id: coverage_metrics
         run: |
           COVERAGE=$(grep -oP '(?<=<coverage line-rate=")\d+\.\d+' coverage/Cobertura.xml || echo "0.00")
           echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
           echo "Coverage: $COVERAGE%"
+
       - name: Upload Coverage Report (Artifact)
         uses: actions/upload-artifact@v4
         with:
@@ -77,6 +82,7 @@ jobs:
             -Dsonar.sources=GestionReservasWebII.Tests
             -Dsonar.coverage.exclusions=GestionReservasWebII.Tests/**/*.cs
             -Dsonar.qualitygate.wait=true
+
       - name: Fetch SonarCloud Metrics and Display
         id: fetch-metrics
         env:
@@ -95,12 +101,13 @@ jobs:
           fi
           echo "SonarCloud API Response: $RESPONSE"
           echo "response=$RESPONSE" >> $GITHUB_ENV
-      - name: Publish SonarCloud Metrics as Annotations
+
+      - name: Create SONAR_RESULTADOS.md
         run: |
-          echo "## 📊 SonarCloud Metrics" >> $GITHUB_STEP_SUMMARY
-          echo "| Metric               | Value   | Icon       |" >> $GITHUB_STEP_SUMMARY
-          echo "|----------------------|---------|------------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Code Coverage       | ${{ env.COVERAGE }}% | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 SonarCloud Analysis Results" > SONAR_RESULTADOS.md
+          echo "| Metric               | Value   | Icon       |" >> SONAR_RESULTADOS.md
+          echo "|----------------------|---------|------------|" >> SONAR_RESULTADOS.md
+          echo "| Code Coverage       | ${{ env.COVERAGE }}% | ✅ |" >> SONAR_RESULTADOS.md
           echo $RESPONSE | jq -r '.component.measures[] | 
           if .metric == "security_rating" then "| Security Rating      | \(.value) | 🛡️ |" 
           elif .metric == "reliability_rating" then "| Reliability Rating   | \(.value) | 🔧 |" 
@@ -110,6 +117,15 @@ jobs:
           elif .metric == "cognitive_complexity" then "| Cognitive Complexity | \(.value) | 🧠 |" 
           elif .metric == "bugs" then "| Bugs                 | \(.value) | 🐛 |" 
           elif .metric == "comment_lines_density" then "| Comment Density      | \(.value)% | 💬 |" 
-          else empty end' >> $GITHUB_STEP_SUMMARY
+          else empty end' >> SONAR_RESULTADOS.md
+
+      - name: Commit and Push SONAR_RESULTADOS.md to Repo
+        run: |
+          git config --global user.name "JeanValverde24"
+          git config --global user.email "jv2020066920@virtual.upt.pe"
+          git remote set-url origin https://JeanValverde24:${{ secrets.REPO_PAT }}@github.com/UPT-FAING-EPIS/proyecto-si982-2024-rec-u2-proyectowebii-valverde-lizarraga.git
+          git add SONAR_RESULTADOS.md
+          git commit -m "📊 Add SonarCloud Analysis Results"
+          git push origin main
         env:
-          RESPONSE: ${{ env.response }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
