@@ -45,12 +45,13 @@ jobs:
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
-      - name: Generate Coverage Report (Filtrado)
+      - name: Generate Coverage Report (Forzando Asociación con Código Fuente)
         run: |
           ~/.dotnet/tools/reportgenerator \
             -reports:GestionReservasWebII.Tests/TestResults/**/coverage.cobertura.xml \
             -targetdir:coverage -reporttypes:Cobertura,Xml \
-            -classfilters:"+GestionReservasWebII.Models.* +GestionReservasWebII.Controllers.*"
+            -classfilters:"+GestionReservasWebII.Models.* +GestionReservasWebII.Controllers.*" \
+            -assemblyfilters:"+GestionReservasWebII"
 
       - name: Verify Coverage File Exists
         run: |
@@ -80,7 +81,6 @@ jobs:
             -Dsonar.organization=jeanvalverde24
             -Dsonar.projectKey=JeanValverde24_Proyecto_Rec_Espejo
             -Dsonar.sources=GestionReservasWebII.Tests
-            -Dsonar.coverage.exclusions=GestionReservasWebII.Tests/**/*.cs
             -Dsonar.qualitygate.wait=true
 
       - name: Fetch SonarCloud Metrics and Display
