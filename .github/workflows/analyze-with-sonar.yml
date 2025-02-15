@@ -1,4 +1,4 @@
-name: SonarCloud Analysis
+name: SonarCloud Analysis and Update README
 
 on:
   push:
@@ -8,7 +8,7 @@ on:
     types: [opened, synchronize, reopened]
 
 permissions:
-  contents: write
+  contents: read
   pull-requests: write
 
 jobs:
@@ -101,12 +101,13 @@ jobs:
           echo "SonarCloud API Response: $RESPONSE"
           echo "response=$RESPONSE" >> $GITHUB_ENV
 
-      - name: Create SONAR_RESULTADOS.md
+      - name: Update README.md with SonarCloud Metrics
         run: |
-          echo "## 📊 SonarCloud Analysis Results" > SONAR_RESULTADOS.md
-          echo "| Metric               | Value   | Icon       |" >> SONAR_RESULTADOS.md
-          echo "|----------------------|---------|------------|" >> SONAR_RESULTADOS.md
-          echo "| Code Coverage       | ${{ env.COVERAGE }}% | ✅ |" >> SONAR_RESULTADOS.md
+          echo "## 📊 SonarCloud Analysis Summary" > README.md
+          echo "" >> README.md
+          echo "| Metric               | Value   | Icon       |" >> README.md
+          echo "|----------------------|---------|------------|" >> README.md
+          echo "| Code Coverage       | ${{ env.COVERAGE }}% | ✅ |" >> README.md
           echo $RESPONSE | jq -r '.component.measures[] | 
           if .metric == "security_rating" then "| Security Rating      | \(.value) | 🛡️ |" 
           elif .metric == "reliability_rating" then "| Reliability Rating   | \(.value) | 🔧 |" 
@@ -116,14 +117,12 @@ jobs:
           elif .metric == "cognitive_complexity" then "| Cognitive Complexity | \(.value) | 🧠 |" 
           elif .metric == "bugs" then "| Bugs                 | \(.value) | 🐛 |" 
           elif .metric == "comment_lines_density" then "| Comment Density      | \(.value)% | 💬 |" 
-          else empty end' >> SONAR_RESULTADOS.md
+          else empty end' >> README.md
 
-      - name: Commit and Push SONAR_RESULTADOS.md to Repo
+      - name: Commit and Push Updated README.md
         run: |
           git config --global user.name "JeanValverde24"
           git config --global user.email "jv2020066920@virtual.upt.pe"
-          git add SONAR_RESULTADOS.md
-          git commit -m "📊 Add SonarCloud Analysis Results"
-          git push https://JeanValverde24:${{ secrets.REPO_PAT }}@github.com/UPT-FAING-EPIS/proyecto-si982-2024-rec-u2-proyectowebii-valverde-lizarraga.git main
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          git add README.md
+          git commit -m "📊 Update README.md with SonarCloud Analysis Results"
+          git push https://JeanValverde24:${{ secrets.REPO_PAT }}@github.com/JeanValverde24/Proyecto_Rec_Espejo.git main
