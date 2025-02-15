@@ -56,7 +56,14 @@ jobs:
           echo "🔍 Checking for coverage file..."
           ls -R coverage/ || echo "⚠️ No coverage files found."
 
-      - name: Upload Coverage Report
+      - name: Extract Coverage Metrics
+        id: coverage_metrics
+        run: |
+          COVERAGE=$(grep -oP '(?<=<coverage line-rate=")\d+\.\d+' coverage/Cobertura.xml || echo "0.00")
+          echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
+          echo "Coverage: $COVERAGE%"
+
+      - name: Upload Coverage Report (Artifact)
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
@@ -71,9 +78,8 @@ jobs:
           args: >
             -Dsonar.organization=jeanvalverde24
             -Dsonar.projectKey=JeanValverde24_Proyecto_Rec_Espejo
-            -Dsonar.sources=GestionReservasWebII/Models,GestionReservasWebII/Controllers
-            -Dsonar.inclusions=GestionReservasWebII/Models/**/*.cs,GestionReservasWebII/Controllers/**/*.cs
-            -Dsonar.cs.opencover.reportsPaths=coverage/Cobertura.xml
+            -Dsonar.sources=GestionReservasWebII.Tests
+            -Dsonar.coverage.exclusions=GestionReservasWebII.Tests/**/*.cs
             -Dsonar.qualitygate.wait=true
 
       - name: Fetch SonarCloud Metrics and Display
@@ -84,7 +90,7 @@ jobs:
           set -e
           SONAR_API_URL="https://sonarcloud.io/api/measures/component"
           PROJECT_KEY="JeanValverde24_Proyecto_Rec_Espejo"
-          METRICS="bugs,vulnerabilities,code_smells,coverage,duplicated_lines_density,complexity,ncloc,cognitive_complexity,comment_lines_density,security_rating,reliability_rating,sqale_rating"
+          METRICS="bugs,vulnerabilities,code_smells,duplicated_lines_density,complexity,ncloc,cognitive_complexity,comment_lines_density,security_rating,reliability_rating,sqale_rating"
           echo "Fetching SonarCloud Metrics..."
           RESPONSE=$(curl -s -u "$SONAR_TOKEN:" "$SONAR_API_URL?component=$PROJECT_KEY&metricKeys=$METRICS")
           if [[ -z "$RESPONSE" || "$RESPONSE" == *"errors"* ]]; then
@@ -100,7 +106,7 @@ jobs:
           echo "## 📊 SonarCloud Metrics" >> $GITHUB_STEP_SUMMARY
           echo "| Metric               | Value   | Icon       |" >> $GITHUB_STEP_SUMMARY
           echo "|----------------------|---------|------------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Coverage             | ${{ env.COVERAGE }}% | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Code Coverage       | ${{ env.COVERAGE }}% | ✅ |" >> $GITHUB_STEP_SUMMARY
           echo $RESPONSE | jq -r '.component.measures[] | 
           if .metric == "security_rating" then "| Security Rating      | \(.value) | 🛡️ |" 
           elif .metric == "reliability_rating" then "| Reliability Rating   | \(.value) | 🔧 |" 
