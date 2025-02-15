@@ -35,11 +35,12 @@ jobs:
       - name: Run Tests with Coverage
         run: |
           mkdir -p GestionReservasWebII.Tests/TestResults
-          dotnet test GestionReservasWebII.Tests/Models GestionReservasWebII.Tests/Controllers \
+          dotnet test GestionReservasWebII.Tests \
             --no-build \
             --collect:"XPlat Code Coverage" \
             --logger trx \
-            --results-directory GestionReservasWebII.Tests/TestResults
+            --results-directory GestionReservasWebII.Tests/TestResults \
+            --filter "FullyQualifiedName~GestionReservasWebII.Tests.Models|FullyQualifiedName~GestionReservasWebII.Tests.Controllers"
 
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
