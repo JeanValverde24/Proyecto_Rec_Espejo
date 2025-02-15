@@ -96,6 +96,28 @@ jobs:
           echo "SonarCloud API Response: $RESPONSE"
           echo "response=$RESPONSE" >> $GITHUB_ENV
 
+      - name: Publish SonarCloud Metrics as Annotations (GitHub Summary)
+        run: |
+          echo "## 📊 SonarCloud Analysis Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric               | Value   | Icon       |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------------------|---------|------------|" >> $GITHUB_STEP_SUMMARY
+
+          echo "| Code Coverage       | ${{ env.COVERAGE }}% | ✅ |" >> $GITHUB_STEP_SUMMARY
+
+          echo $RESPONSE | jq -r '.component.measures[] | 
+          if .metric == "security_rating" then "| Security Rating      | \(.value) | 🛡️ |" 
+          elif .metric == "reliability_rating" then "| Reliability Rating   | \(.value) | 🔧 |" 
+          elif .metric == "sqale_rating" then "| Maintainability      | \(.value) | ♻️ |" 
+          elif .metric == "code_smells" then "| Code Smells          | \(.value) | 🤢 |" 
+          elif .metric == "duplicated_lines_density" then "| Duplications         | \(.value)% | 🔀 |" 
+          elif .metric == "cognitive_complexity" then "| Cognitive Complexity | \(.value) | 🧠 |" 
+          elif .metric == "bugs" then "| Bugs                 | \(.value) | 🐛 |" 
+          elif .metric == "comment_lines_density" then "| Comment Density      | \(.value)% | 💬 |" 
+          elif .metric == "ncloc" then "| Lines of Code        | \(.value) | 📜 |" 
+          elif .metric == "vulnerabilities" then "| Vulnerabilities      | \(.value) | 🔓 |" 
+          else empty end' >> $GITHUB_STEP_SUMMARY
+
       - name: Clone Repository and Update README.md
         run: |
           # Clonar el repositorio con autenticación por token PAT
@@ -113,14 +135,14 @@ jobs:
           cp README.md README_OLD.md || touch README_OLD.md
 
           # Escribir el nuevo README.md con los resultados de SonarCloud
-          echo "## 📊 SonarCloud Analysis Summary" > README.md
-          echo "" >> README.md
-          echo "| Metric               | Value   | Icon       |" >> README.md
-          echo "|----------------------|---------|------------|" >> README.md
+          cat <<EOF > README.md
+          ## 📊 SonarCloud Analysis Summary
 
-          echo "| Code Coverage       | ${{ env.COVERAGE }}% | ✅ |" >> README.md
+          | Metric               | Value   | Icon       |
+          |----------------------|---------|------------|
+          | Code Coverage       | ${{ env.COVERAGE }}% | ✅ |
 
-          echo $RESPONSE | jq -r '.component.measures[] | 
+          $(echo $RESPONSE | jq -r '.component.measures[] | 
           if .metric == "security_rating" then "| Security Rating      | \(.value) | 🛡️ |" 
           elif .metric == "reliability_rating" then "| Reliability Rating   | \(.value) | 🔧 |" 
           elif .metric == "sqale_rating" then "| Maintainability      | \(.value) | ♻️ |" 
@@ -131,18 +153,9 @@ jobs:
           elif .metric == "comment_lines_density" then "| Comment Density      | \(.value)% | 💬 |" 
           elif .metric == "ncloc" then "| Lines of Code        | \(.value) | 📜 |" 
           elif .metric == "vulnerabilities" then "| Vulnerabilities      | \(.value) | 🔓 |" 
-          else empty end' >> README.md
+          else empty end')
+          EOF
 
-          # Comparar si hay cambios reales en el archivo
-          if cmp -s README.md README_OLD.md; then
-            echo "⚠️ No changes detected in README.md, skipping commit."
-            exit 0
-          fi
-
-          # Mostrar el contenido actualizado del README.md
-          cat README.md
-
-          # Hacer commit y push solo si hay cambios
           git add README.md
-          git commit -m "📊 Update README.md with SonarCloud Analysis Results"
+          git commit -m "📊 Update README.md with SonarCloud Analysis Results" || exit 0
           git push origin main
