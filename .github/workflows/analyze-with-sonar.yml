@@ -51,11 +51,6 @@ jobs:
             -reports:GestionReservasWebII.Tests/TestResults/**/coverage.cobertura.xml \
             -targetdir:coverage -reporttypes:Cobertura,Xml
 
-      - name: Verify Coverage File Exists
-        run: |
-          echo "🔍 Checking for coverage file..."
-          ls -R coverage/ || echo "⚠️ No coverage files found."
-
       - name: Extract Coverage Metrics
         id: coverage_metrics
         run: |
@@ -114,7 +109,10 @@ jobs:
           # Asegurar que estamos en la última versión
           git pull origin main
           
-          # Actualizar el README.md con los resultados de SonarCloud
+          # Guardar el contenido anterior del README.md para compararlo
+          cp README.md README_OLD.md || touch README_OLD.md
+
+          # Escribir el nuevo README.md con los resultados de SonarCloud
           echo "## 📊 SonarCloud Analysis Summary" > README.md
           echo "" >> README.md
           echo "| Metric               | Value   | Icon       |" >> README.md
@@ -133,7 +131,16 @@ jobs:
           elif .metric == "vulnerabilities" then "| Vulnerabilities      | \(.value) | 🔓 |" 
           else empty end' >> README.md
 
-          # Hacer commit y push al repositorio
+          # Comparar si hay cambios reales en el archivo
+          if cmp -s README.md README_OLD.md; then
+            echo "⚠️ No changes detected in README.md, skipping commit."
+            exit 0
+          fi
+
+          # Mostrar el contenido actualizado del README.md
+          cat README.md
+
+          # Hacer commit y push solo si hay cambios
           git add README.md
           git commit -m "📊 Update README.md with SonarCloud Analysis Results"
           git push origin main
