@@ -40,34 +40,29 @@ jobs:
             --collect:"XPlat Code Coverage" \
             --logger trx \
             --settings coverlet.runsettings \
-            --results-directory GestionReservasWebII.Tests/TestResults \
-            --filter "FullyQualifiedName~GestionReservasWebII.Tests.Models|FullyQualifiedName~GestionReservasWebII.Tests.Controllers"
+            --results-directory GestionReservasWebII.Tests/TestResults
+
+      - name: Verify TestResults Directory
+        run: |
+          echo "🔍 Listing TestResults Directory..."
+          ls -R GestionReservasWebII.Tests/TestResults || echo "⚠️ No coverage files found."
 
       - name: Install ReportGenerator
         run: dotnet tool install --global dotnet-reportgenerator-globaltool
 
-      - name: Generate Coverage Report (Forzando Asociación con Código Fuente)
+      - name: Generate Coverage Report
         run: |
           ~/.dotnet/tools/reportgenerator \
             -reports:GestionReservasWebII.Tests/TestResults/**/coverage.cobertura.xml \
-            -targetdir:coverage -reporttypes:Cobertura,Xml \
-            -sourcefolders:GestionReservasWebII \
-            -classfilters:"+GestionReservasWebII.Models.* +GestionReservasWebII.Controllers.*" \
-            -assemblyfilters:"+GestionReservasWebII"
+            -targetdir:coverage \
+            -reporttypes:Cobertura,Xml
 
-      - name: Verify Coverage File Exists
+      - name: Verify Coverage Report
         run: |
-          echo "🔍 Checking for coverage file..."
-          ls -R coverage/ || echo "⚠️ No coverage files found."
+          echo "🔍 Checking Coverage Report..."
+          cat coverage/Cobertura.xml || echo "⚠️ Coverage report is empty."
 
-      - name: Extract Coverage Metrics
-        id: coverage_metrics
-        run: |
-          COVERAGE=$(grep -oP '(?<=<coverage line-rate=")\d+\.\d+' coverage/Cobertura.xml || echo "0.00")
-          echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
-          echo "Coverage: $COVERAGE%"
-
-      - name: Upload Coverage Report (Artifact)
+      - name: Upload Coverage Report
         uses: actions/upload-artifact@v4
         with:
           name: coverage-report
@@ -82,7 +77,8 @@ jobs:
           args: >
             -Dsonar.organization=jeanvalverde24
             -Dsonar.projectKey=JeanValverde24_Proyecto_Rec_Espejo
-            -Dsonar.sources=GestionReservasWebII.Tests,GestionReservasWebII
+            -Dsonar.sources=GestionReservasWebII/Models,GestionReservasWebII/Controllers
+            -Dsonar.coverage.exclusions=GestionReservasWebII.Tests/**/*.cs
             -Dsonar.cs.opencover.reportsPaths=coverage/Cobertura.xml
             -Dsonar.qualitygate.wait=true
 
@@ -107,10 +103,10 @@ jobs:
 
       - name: Publish SonarCloud Metrics as Annotations
         run: |
-          echo "## 📊 SonarCloud Metrics" >> $GITHUB_STEP_SUMMARY
+          echo "## SonarCloud Metrics" >> $GITHUB_STEP_SUMMARY
           echo "| Metric               | Value   | Icon       |" >> $GITHUB_STEP_SUMMARY
           echo "|----------------------|---------|------------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Code Coverage       | ${{ env.COVERAGE }}% | ✅ |" >> $GITHUB_STEP_SUMMARY
+          echo "| Coverage             | ${{ env.COVERAGE }}% | ✅ |" >> $GITHUB_STEP_SUMMARY
           echo $RESPONSE | jq -r '.component.measures[] | 
           if .metric == "security_rating" then "| Security Rating      | \(.value) | 🛡️ |" 
           elif .metric == "reliability_rating" then "| Reliability Rating   | \(.value) | 🔧 |" 
