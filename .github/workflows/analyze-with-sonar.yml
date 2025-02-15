@@ -117,7 +117,9 @@ jobs:
           echo "" >> README.md
           echo "| Metric               | Value   | Icon       |" >> README.md
           echo "|----------------------|---------|------------|" >> README.md
+
           echo "| Code Coverage       | ${{ env.COVERAGE }}% | ✅ |" >> README.md
+
           echo $RESPONSE | jq -r '.component.measures[] | 
           if .metric == "security_rating" then "| Security Rating      | \(.value) | 🛡️ |" 
           elif .metric == "reliability_rating" then "| Reliability Rating   | \(.value) | 🔧 |" 
